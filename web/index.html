@@ -66,10 +66,17 @@
       height: 100vh;
       position: sticky;
       top: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: hidden;   /* sidebar itself does NOT scroll */
       flex-shrink: 0;
       z-index: 100;
+    }
+
+    /* Only the filter sections scroll — top and bottom are pinned */
+    #sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 0;      /* required for flex child to shrink */
     }
 
     #main {
@@ -223,6 +230,8 @@
 
     .region-countries { display: none; }
     .region-countries.open { display: block; }
+    /* Added by search — independent of .open so click handler doesn't conflict */
+    .region-countries.search-open { display: block; }
 
     .country-item {
       display: flex;
@@ -280,8 +289,8 @@
 
     /* ── Sidebar — stats footer ─────────────────────────────────────── */
     .sidebar-footer {
-      margin-top: auto;
-      padding: 1rem 1.25rem;
+      /* No margin-top:auto — sits naturally below the filter sections */
+      padding: 0.75rem 1.25rem 1rem;
       font-size: 0.75rem;
       color: var(--text-muted);
       border-top: 1px solid var(--border);
@@ -889,47 +898,52 @@
       <div class="nhp-meta" id="nhp-meta"></div>
     </div>
 
-    <!-- Countries / Regions filter -->
-    <div class="sidebar-section">
-      <div class="sidebar-section-header" id="region-section-hdr" role="button" tabindex="0" aria-expanded="true">
-        <span>Countries &amp; Regions</span>
-        <span class="chevron">&#9660;</span>
-      </div>
-      <div class="sidebar-section-body" id="region-section-body">
-        <!-- Country search -->
-        <div class="country-search-wrap">
-          <input
-            type="search"
-            id="country-search"
-            class="country-search"
-            placeholder="Search countries…"
-            autocomplete="off"
-            spellcheck="false"
-            aria-label="Search countries"
-          />
-        </div>
-        <!-- "All Countries" -->
-        <div class="filter-all active" id="filter-all-btn" role="button" tabindex="0">
-          <span>🌍</span>
-          <span>All Countries</span>
-        </div>
-        <!-- Region groups populated by JS -->
-        <div id="region-list"></div>
-      </div>
-    </div>
+    <!-- Scrollable filter area -->
+    <div id="sidebar-scroll">
 
-    <!-- Holiday type filter -->
-    <div class="sidebar-section">
-      <div class="sidebar-section-header" id="type-section-hdr" role="button" tabindex="0" aria-expanded="true">
-        <span>Holiday Type</span>
-        <span class="chevron">&#9660;</span>
+      <!-- Countries / Regions filter -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header" id="region-section-hdr" role="button" tabindex="0" aria-expanded="true">
+          <span>Countries &amp; Regions</span>
+          <span class="chevron">&#9660;</span>
+        </div>
+        <div class="sidebar-section-body" id="region-section-body">
+          <!-- Country search -->
+          <div class="country-search-wrap">
+            <input
+              type="search"
+              id="country-search"
+              class="country-search"
+              placeholder="Search countries…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Search countries"
+            />
+          </div>
+          <!-- "All Countries" -->
+          <div class="filter-all active" id="filter-all-btn" role="button" tabindex="0">
+            <span>🌍</span>
+            <span>All Countries</span>
+          </div>
+          <!-- Region groups populated by JS -->
+          <div id="region-list"></div>
+        </div>
       </div>
-      <div class="sidebar-section-body" id="type-section-body">
-        <div class="type-filter-wrap" id="type-chips" role="group" aria-label="Filter by holiday type"></div>
-      </div>
-    </div>
 
-    <!-- Stats footer -->
+      <!-- Holiday type filter -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header" id="type-section-hdr" role="button" tabindex="0" aria-expanded="true">
+          <span>Holiday Type</span>
+          <span class="chevron">&#9660;</span>
+        </div>
+        <div class="sidebar-section-body" id="type-section-body">
+          <div class="type-filter-wrap" id="type-chips" role="group" aria-label="Filter by holiday type"></div>
+        </div>
+      </div>
+
+    </div><!-- end #sidebar-scroll -->
+
+    <!-- Stats footer — pinned at bottom, always visible -->
     <div class="sidebar-footer" id="sidebar-footer">
       <div class="footer-stats">
         <span class="stats-count" id="stats-count">0</span> holidays loaded
@@ -1150,6 +1164,12 @@
       if (!regionOrder.includes(r)) regionOrder.push(r);
     }
 
+    // Save which regions are currently expanded before wiping the list
+    const openRegions = new Set();
+    dom.regionList.querySelectorAll('.region-header.open').forEach(hdr => {
+      openRegions.add(hdr.dataset.region);
+    });
+
     dom.regionList.innerHTML = '';
 
     for (const regionName of regionOrder) {
@@ -1191,6 +1211,12 @@
           </label>
         `;
         countriesEl.appendChild(item);
+      }
+
+      // Restore expanded state if it was open before the re-render
+      if (openRegions.has(regionName)) {
+        header.classList.add('open');
+        countriesEl.classList.add('open');
       }
 
       group.appendChild(header);
@@ -1814,24 +1840,11 @@
       const countryItem = e.target.closest('.country-item');
 
       if (regionHdr) {
-        // Toggle open/close of country list under region
-        const countries = regionHdr.nextElementSibling;
+        // Clicking a region header ONLY expands/collapses the country list.
+        // It does NOT filter — select individual countries to filter.
+        const countriesEl = regionHdr.nextElementSibling;
         const isOpen = regionHdr.classList.toggle('open');
-        countries.classList.toggle('open', isOpen);
-
-        // Clicking region selects all its countries (i.e. filter by region)
-        const regionName = regionHdr.dataset.region;
-        if (state.selectedRegion === regionName) {
-          // Second click deselects
-          state.selectedRegion  = null;
-          state.selectedCountry = null;
-        } else {
-          state.selectedRegion  = regionName;
-          state.selectedCountry = null;
-        }
-        syncFilterUI();
-        updateClearFiltersBtn();
-        refresh();
+        countriesEl.classList.toggle('open', isOpen);
         return;
       }
 
@@ -1893,25 +1906,40 @@
     // ── Country search box ───────────────────────────────────────────
     dom.countrySearch.addEventListener('input', () => {
       const query = dom.countrySearch.value.trim().toLowerCase();
-      // Show/hide country items based on query
+
+      if (!query) {
+        // Clear search: restore everything to natural CSS state
+        dom.regionList.querySelectorAll('.country-item').forEach(item => {
+          item.style.display = '';
+        });
+        dom.regionList.querySelectorAll('.region-group').forEach(group => {
+          group.style.display = '';
+        });
+        dom.regionList.querySelectorAll('.region-countries').forEach(el => {
+          el.classList.remove('search-open');
+        });
+        return;
+      }
+
+      // Step 1: show/hide each country item
       dom.regionList.querySelectorAll('.country-item').forEach(item => {
         const code = item.dataset.code || '';
         const country = state.countries.find(c => c.code === code);
         const name = country ? country.name.toLowerCase() : '';
-        const match = !query || name.includes(query) || code.toLowerCase().includes(query);
+        const match = name.includes(query) || code.toLowerCase().includes(query);
         item.style.display = match ? '' : 'none';
       });
-      // Show/hide region groups — hide entire group if all countries hidden
+
+      // Step 2: show/hide region groups; expand matching ones with .search-open
+      // .search-open is independent of the click handler's .open class so they
+      // never conflict — the click handler can still toggle .open freely
       dom.regionList.querySelectorAll('.region-group').forEach(group => {
-        const visible = [...group.querySelectorAll('.country-item')]
-          .some(item => item.style.display !== 'none');
-        group.style.display = visible ? '' : 'none';
-        // Auto-expand region groups when searching
-        if (query) {
-          const countriesEl = group.querySelector('.region-countries');
-          const regionHeader = group.querySelector('.region-header');
-          if (countriesEl) countriesEl.classList.add('open');
-          if (regionHeader) regionHeader.classList.add('open');
+        const items = [...group.querySelectorAll('.country-item')];
+        const hasMatch = items.some(item => item.style.display !== 'none');
+        group.style.display = hasMatch ? '' : 'none';
+        const countriesEl = group.querySelector('.region-countries');
+        if (countriesEl) {
+          countriesEl.classList.toggle('search-open', hasMatch);
         }
       });
     });
@@ -1923,9 +1951,11 @@
       state.selectedType    = 'all';
       if (dom.countrySearch) {
         dom.countrySearch.value = '';
-        // Re-show all items
         dom.regionList.querySelectorAll('.country-item, .region-group').forEach(el => {
           el.style.display = '';
+        });
+        dom.regionList.querySelectorAll('.region-countries').forEach(el => {
+          el.classList.remove('search-open');
         });
       }
       syncFilterUI();
