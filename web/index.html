@@ -1,0 +1,1997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clandar — Global Holiday Calendar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & base ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0f172a;
+      --sidebar-bg:   #1e293b;
+      --card-bg:      #1e293b;
+      --card-hover:   #263348;
+      --border:       #334155;
+      --accent:       #38bdf8;
+      --accent-dark:  #0284c7;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted:   #64748b;
+
+      /* holiday type colours */
+      --col-public:     #38bdf8;
+      --col-religious:  #a78bfa;
+      --col-cultural:   #fb923c;
+      --col-school:     #4ade80;
+      --col-observance: #94a3b8;
+      --col-optional:   #f472b6;
+
+      --sidebar-w: 260px;
+      --radius:    0.75rem;
+      --radius-sm: 0.375rem;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+    input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+
+    /* ── Scrollbar styling ──────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ── Layout ─────────────────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    #main {
+      flex: 1;
+      min-width: 0;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    /* ── Sidebar — logo ─────────────────────────────────────────────── */
+    .sidebar-logo {
+      padding: 1.5rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.02em;
+    }
+
+    .sidebar-logo-title .logo-icon { font-size: 1.4rem; }
+    .sidebar-logo-title .logo-accent { color: var(--accent); }
+
+    .sidebar-logo-sub {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ── Sidebar — year nav ─────────────────────────────────────────── */
+    .year-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .year-nav-btn {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: background 0.15s, color 0.15s;
+      font-size: 1rem;
+    }
+
+    .year-nav-btn:hover {
+      background: var(--border);
+      color: var(--text-primary);
+    }
+
+    .year-display {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.01em;
+    }
+
+    /* ── Sidebar — sections ─────────────────────────────────────────── */
+    .sidebar-section {
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .sidebar-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.875rem 1.25rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+
+    .sidebar-section-header:hover { color: var(--text-secondary); }
+
+    .sidebar-section-header .chevron {
+      transition: transform 0.2s;
+      font-size: 0.6rem;
+    }
+
+    .sidebar-section-header.collapsed .chevron { transform: rotate(-90deg); }
+
+    .sidebar-section-body {
+      overflow: hidden;
+      transition: max-height 0.25s ease;
+    }
+
+    .sidebar-section-body.collapsed { max-height: 0 !important; }
+
+    /* ── Sidebar — filter tree ──────────────────────────────────────── */
+    .filter-all {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 1.25rem;
+      font-size: 0.8125rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.12s;
+      border-radius: 0;
+    }
+
+    .filter-all:hover { background: var(--card-hover); }
+    .filter-all.active { color: var(--accent); font-weight: 600; }
+
+    .region-group { margin-bottom: 0.25rem; }
+
+    .region-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 1.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.12s, color 0.15s;
+    }
+
+    .region-header:hover { background: var(--card-hover); color: var(--text-primary); }
+    .region-header.active { color: var(--accent); }
+
+    .region-header .r-chevron {
+      margin-left: auto;
+      font-size: 0.55rem;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .region-header.open .r-chevron { transform: rotate(90deg); }
+
+    .region-countries { display: none; }
+    .region-countries.open { display: block; }
+
+    .country-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.35rem 1.25rem 0.35rem 2rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-radius: 0;
+    }
+
+    .country-item:hover { background: var(--card-hover); }
+    .country-item.active { color: var(--accent); }
+
+    .country-item label {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      pointer-events: none;
+    }
+
+    .country-flag { font-size: 1rem; line-height: 1; }
+
+    /* ── Sidebar — type filter ──────────────────────────────────────── */
+    .type-filter-wrap {
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .type-chip {
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+
+    .type-chip:hover { background: var(--border); color: var(--text-primary); }
+
+    .type-chip.active-all    { background: var(--accent); color: #0f172a; border-color: var(--accent); font-weight: 600; }
+    .type-chip.active-public     { background: var(--col-public);     color: #0f172a; border-color: var(--col-public); }
+    .type-chip.active-religious  { background: var(--col-religious);  color: #0f172a; border-color: var(--col-religious); }
+    .type-chip.active-cultural   { background: var(--col-cultural);   color: #0f172a; border-color: var(--col-cultural); }
+    .type-chip.active-school     { background: var(--col-school);     color: #0f172a; border-color: var(--col-school); }
+    .type-chip.active-observance { background: var(--col-observance); color: #0f172a; border-color: var(--col-observance); }
+    .type-chip.active-optional   { background: var(--col-optional);   color: #0f172a; border-color: var(--col-optional); }
+
+    /* ── Sidebar — stats footer ─────────────────────────────────────── */
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 1rem 1.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .stats-count { color: var(--accent); font-weight: 600; }
+
+    /* ── Loading / error states ─────────────────────────────────────── */
+    #loading-overlay {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 4rem 2rem;
+      color: var(--text-secondary);
+    }
+
+    #loading-overlay.active { display: flex; }
+
+    .spinner {
+      width: 2rem;
+      height: 2rem;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #error-banner {
+      display: none;
+      background: #450a0a;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+    }
+
+    #error-banner.active { display: block; }
+
+    #no-data-msg {
+      display: none;
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary);
+    }
+
+    #no-data-msg.active { display: block; }
+    #no-data-msg .nd-icon { font-size: 3rem; margin-bottom: 1rem; }
+    #no-data-msg .nd-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+
+    /* ── Calendar grid ───────────────────────────────────────────────── */
+    #calendar-wrap { display: none; }
+    #calendar-wrap.active { display: block; }
+
+    .months-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .month-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .month-card.current-month-card {
+      border: 1.5px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.1);
+    }
+
+    .month-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.875rem 1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .month-header.density-low  { background: rgba(251, 146, 60, 0.04); }
+    .month-header.density-mid  { background: rgba(251, 146, 60, 0.09); }
+    .month-header.density-high { background: rgba(251, 146, 60, 0.16); }
+
+    .month-name {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .month-count {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .month-count .count-num {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .cal-grid {
+      padding: 0.5rem 0.75rem 0.75rem;
+    }
+
+    .cal-dow-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 0.25rem;
+    }
+
+    .cal-dow {
+      text-align: center;
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.3rem 0;
+    }
+
+    .cal-weeks { display: flex; flex-direction: column; gap: 2px; }
+
+    .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+
+    .cal-day {
+      position: relative;
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: default;
+      transition: background 0.1s;
+      min-height: 28px;
+    }
+
+    .cal-day.other-month { color: var(--text-muted); opacity: 0.35; }
+
+    .cal-day.today {
+      color: var(--accent);
+      font-weight: 700;
+      box-shadow: inset 0 0 0 1.5px var(--accent);
+    }
+
+    .cal-day.has-holiday {
+      cursor: pointer;
+      color: var(--text-primary);
+    }
+
+    .cal-day.has-holiday:hover { background: var(--card-hover); }
+
+    .cal-day.weekend-day {
+      background: rgba(148, 163, 184, 0.04);
+    }
+    .cal-day.weekend-day.has-holiday {
+      background: rgba(148, 163, 184, 0.06);
+    }
+    .cal-day.weekend-day.has-holiday:hover {
+      background: var(--card-hover);
+    }
+
+    .cal-day.selected-day { background: rgba(56, 189, 248, 0.15); }
+
+    .day-num { line-height: 1; z-index: 1; }
+
+    /* dot strip below day number */
+    .day-dots {
+      display: flex;
+      gap: 2px;
+      margin-top: 2px;
+      flex-wrap: nowrap;
+      overflow: hidden;
+      max-width: 100%;
+      justify-content: center;
+    }
+
+    .day-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Popover ─────────────────────────────────────────────────────── */
+    /* Attached to document.body and positioned via JS so it always
+       escapes overflow:hidden month card containers.                    */
+    .popover {
+      position: fixed;
+      z-index: 9999;
+      background: #0f1c2e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      width: 280px;
+      max-height: 320px;
+      overflow-y: auto;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    .popover.open {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(0);
+    }
+
+    .popover-date {
+      padding: 0.75rem 1rem 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: #0f1c2e;
+    }
+
+    .popover-holiday {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid rgba(51,65,85,0.5);
+      font-size: 0.8125rem;
+    }
+
+    .popover-holiday:last-child { border-bottom: none; }
+
+    .ph-flag { font-size: 1.1rem; flex-shrink: 0; line-height: 1.3; }
+
+    .ph-info { flex: 1; min-width: 0; }
+
+    .ph-country {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 0.15rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ph-name {
+      color: var(--text-primary);
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .ph-badge {
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      flex-shrink: 0;
+      margin-top: 0.2rem;
+      align-self: flex-start;
+    }
+
+    /* ── Type badge colours ─────────────────────────────────────────── */
+    .badge-public     { background: rgba(56,189,248,0.15);  color: var(--col-public); }
+    .badge-religious  { background: rgba(167,139,250,0.15); color: var(--col-religious); }
+    .badge-cultural   { background: rgba(251,146,60,0.15);  color: var(--col-cultural); }
+    .badge-school     { background: rgba(74,222,128,0.15);  color: var(--col-school); }
+    .badge-observance { background: rgba(148,163,184,0.15); color: var(--col-observance); }
+    .badge-optional   { background: rgba(244,114,182,0.15); color: var(--col-optional); }
+
+    /* dot colours (same classes used on .day-dot) */
+    .dot-public     { background: var(--col-public); }
+    .dot-religious  { background: var(--col-religious); }
+    .dot-cultural   { background: var(--col-cultural); }
+    .dot-school     { background: var(--col-school); }
+    .dot-observance { background: var(--col-observance); }
+    .dot-optional   { background: var(--col-optional); }
+
+    .day-dots-more {
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--text-muted);
+      line-height: 1;
+      margin-left: 1px;
+    }
+
+    /* ── Mobile top bar ─────────────────────────────────────────────── */
+    #mobile-top-bar {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .mob-logo {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-shrink: 0;
+    }
+
+    .mob-logo span { color: var(--accent); }
+
+    .mob-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .mob-year-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .mob-year-btn {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      padding: 0 0.15rem;
+    }
+
+    #mob-filter-toggle {
+      padding: 0.3rem 0.7rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    #mob-filter-toggle:hover { background: var(--card-hover); }
+
+    /* Mobile filter drawer */
+    #mob-filter-drawer {
+      display: none;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1rem 1rem;
+    }
+
+    #mob-filter-drawer.open { display: block; }
+
+    .mob-section-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .mob-country-select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.8rem;
+      font-family: inherit;
+      margin-bottom: 0.75rem;
+    }
+
+    .mob-type-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    /* ── Mobile layout toggles ──────────────────────────────────────── */
+    @media (max-width: 767px) {
+      body { flex-direction: column; }
+
+      #sidebar { display: none !important; }
+
+      #mobile-top-bar { display: flex; }
+
+      #main {
+        padding: 1rem;
+        overflow-y: unset;
+      }
+
+      .months-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Legend strip ───────────────────────────────────────────────── */
+    .legend-strip {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+      padding: 0.6rem 1rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Misc ───────────────────────────────────────────────────────── */
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+    /* ── Next Upcoming Holiday pill ─────────────────────────────────── */
+    .next-holiday-pill {
+      margin: 0 12px 4px;
+      padding: 10px 12px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .nhp-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #38bdf8;
+      margin-bottom: 4px;
+    }
+    .nhp-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .nhp-meta {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    /* ── Jump-to-today button ────────────────────────────────────────── */
+    .today-btn {
+      background: none;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #38bdf8;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 4px;
+      transition: background 0.15s;
+    }
+    .today-btn:hover { background: rgba(56, 189, 248, 0.12); }
+
+    /* ── Popover days-away sub-label ─────────────────────────────────── */
+    .popover-days-away {
+      font-size: 11px;
+      color: #38bdf8;
+      padding: 0 1rem 0.6rem;
+      font-weight: 600;
+    }
+
+    /* ── Country search box ──────────────────────────────────────────── */
+    .country-search-wrap {
+      padding: 6px 12px 4px;
+    }
+    .country-search {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .country-search:focus {
+      border-color: var(--accent);
+    }
+    .country-search::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* ── Holiday count badge per country ─────────────────────────────── */
+    .country-item label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      cursor: pointer;
+    }
+    .country-name-text {
+      flex: 1;
+    }
+    .country-count-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.07);
+      border-radius: 10px;
+      padding: 1px 6px;
+      min-width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Clear filters button ────────────────────────────────────────── */
+    .sidebar-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .footer-stats {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .clear-filters-btn {
+      background: none;
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      color: #f87171;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-align: left;
+    }
+    .clear-filters-btn:hover {
+      background: rgba(248, 113, 113, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── LEFT SIDEBAR ───────────────────────────────────────────────── -->
+  <aside id="sidebar" role="navigation" aria-label="Filters">
+
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-title">
+        <span class="logo-icon">🗓️</span>
+        <span>Clan<span class="logo-accent">dar</span></span>
+      </div>
+      <div class="sidebar-logo-sub">Global Holiday Calendar</div>
+    </div>
+
+    <!-- Year navigation -->
+    <div class="year-nav">
+      <button class="year-nav-btn" id="year-prev" aria-label="Previous year">&#8592;</button>
+      <span class="year-display" id="year-label">2026</span>
+      <button class="year-nav-btn" id="year-next" aria-label="Next year">&#8594;</button>
+      <button class="today-btn" id="today-btn" aria-label="Jump to today" title="Jump to today">&#8857;</button>
+    </div>
+
+    <!-- Next upcoming holiday pill -->
+    <div id="next-holiday-pill" class="next-holiday-pill" style="display:none">
+      <div class="nhp-label">Next holiday</div>
+      <div class="nhp-name" id="nhp-name"></div>
+      <div class="nhp-meta" id="nhp-meta"></div>
+    </div>
+
+    <!-- Countries / Regions filter -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-header" id="region-section-hdr" role="button" tabindex="0" aria-expanded="true">
+        <span>Countries &amp; Regions</span>
+        <span class="chevron">&#9660;</span>
+      </div>
+      <div class="sidebar-section-body" id="region-section-body">
+        <!-- Country search -->
+        <div class="country-search-wrap">
+          <input
+            type="search"
+            id="country-search"
+            class="country-search"
+            placeholder="Search countries…"
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="Search countries"
+          />
+        </div>
+        <!-- "All Countries" -->
+        <div class="filter-all active" id="filter-all-btn" role="button" tabindex="0">
+          <span>🌍</span>
+          <span>All Countries</span>
+        </div>
+        <!-- Region groups populated by JS -->
+        <div id="region-list"></div>
+      </div>
+    </div>
+
+    <!-- Holiday type filter -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-header" id="type-section-hdr" role="button" tabindex="0" aria-expanded="true">
+        <span>Holiday Type</span>
+        <span class="chevron">&#9660;</span>
+      </div>
+      <div class="sidebar-section-body" id="type-section-body">
+        <div class="type-filter-wrap" id="type-chips" role="group" aria-label="Filter by holiday type"></div>
+      </div>
+    </div>
+
+    <!-- Stats footer -->
+    <div class="sidebar-footer" id="sidebar-footer">
+      <div class="footer-stats">
+        <span class="stats-count" id="stats-count">0</span> holidays loaded
+      </div>
+      <button class="clear-filters-btn" id="clear-filters-btn" style="display:none" title="Reset all filters">
+        ✕ Clear filters
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── MOBILE TOP BAR ─────────────────────────────────────────────── -->
+  <div id="mobile-top-bar">
+    <div class="mob-logo">🗓️ Clan<span>dar</span></div>
+    <div class="mob-controls">
+      <div class="mob-year-nav">
+        <button class="mob-year-btn" id="mob-year-prev" aria-label="Previous year">&#8592;</button>
+        <span id="mob-year-label">2026</span>
+        <button class="mob-year-btn" id="mob-year-next" aria-label="Next year">&#8594;</button>
+      </div>
+      <button id="mob-filter-toggle">☰ Filters</button>
+    </div>
+    <div id="mob-filter-drawer">
+      <div class="mob-section-label">Country / Region</div>
+      <select class="mob-country-select" id="mob-country-select" aria-label="Select country or region"></select>
+      <div class="mob-section-label">Holiday Type</div>
+      <div class="mob-type-chips" id="mob-type-chips"></div>
+    </div>
+  </div>
+
+  <!-- ── MAIN CONTENT ───────────────────────────────────────────────── -->
+  <main id="main" role="main">
+    <div id="error-banner" role="alert"></div>
+
+    <!-- Loading state -->
+    <div id="loading-overlay">
+      <div class="spinner" role="status" aria-label="Loading"></div>
+      <span>Loading holidays…</span>
+    </div>
+
+    <!-- No data state -->
+    <div id="no-data-msg">
+      <div class="nd-icon">📭</div>
+      <div class="nd-title">No holiday data available</div>
+      <p>This country or region doesn't have holiday data yet, or there are no holidays matching your filters.</p>
+    </div>
+
+    <!-- Calendar -->
+    <div id="calendar-wrap">
+      <!-- Legend -->
+      <div class="legend-strip" id="legend-strip"></div>
+      <!-- 12 month grids -->
+      <div class="months-grid" id="months-grid"></div>
+    </div>
+  </main>
+
+  <script>
+  'use strict';
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Constants & config
+  // ─────────────────────────────────────────────────────────────────────────
+  const MONTH_NAMES = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+  const DOW_LABELS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const TYPE_META = {
+    all:        { label: 'All',        chipClass: 'active-all' },
+    public:     { label: 'Public',     chipClass: 'active-public',     dotClass: 'dot-public',     badgeClass: 'badge-public' },
+    religious:  { label: 'Religious',  chipClass: 'active-religious',  dotClass: 'dot-religious',  badgeClass: 'badge-religious' },
+    cultural:   { label: 'Cultural',   chipClass: 'active-cultural',   dotClass: 'dot-cultural',   badgeClass: 'badge-cultural' },
+    school:     { label: 'School',     chipClass: 'active-school',     dotClass: 'dot-school',     badgeClass: 'badge-school' },
+    observance: { label: 'Observance', chipClass: 'active-observance', dotClass: 'dot-observance', badgeClass: 'badge-observance' },
+    optional:   { label: 'Optional',   chipClass: 'active-optional',   dotClass: 'dot-optional',   badgeClass: 'badge-optional' },
+  };
+
+  const TYPE_ORDER = ['all','public','religious','cultural','school','observance','optional'];
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // App state — single source of truth
+  // ─────────────────────────────────────────────────────────────────────────
+  const today = new Date();
+  const state = {
+    year:            today.getFullYear(),
+    selectedCountry: null,   // null = all countries
+    selectedRegion:  null,   // null = all regions
+    selectedType:    'all',  // holiday type filter (client-side only)
+    holidays:        [],     // raw holidays from last API fetch
+    countries:       [],     // [{code, name, region, flag_emoji}]
+    regions:         [],     // [{name, country_count}]
+
+    // Cache: Map<`${year}|${country}|${region}` → holidays[]>
+    cache: new Map(),
+  };
+
+  // Track open popover element so we can close it
+  let activePopover = null;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DOM refs
+  // ─────────────────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const dom = {
+    yearLabel:      $('year-label'),
+    yearPrev:       $('year-prev'),
+    yearNext:       $('year-next'),
+    todayBtn:       $('today-btn'),
+    mobYearLabel:   $('mob-year-label'),
+    mobYearPrev:    $('mob-year-prev'),
+    mobYearNext:    $('mob-year-next'),
+    mobFilterToggle:$('mob-filter-toggle'),
+    mobFilterDrawer:$('mob-filter-drawer'),
+    mobCountrySelect:$('mob-country-select'),
+    mobTypeChips:   $('mob-type-chips'),
+    regionSectionHdr:  $('region-section-hdr'),
+    regionSectionBody: $('region-section-body'),
+    typeSectionHdr:    $('type-section-hdr'),
+    typeSectionBody:   $('type-section-body'),
+    filterAllBtn:   $('filter-all-btn'),
+    regionList:     $('region-list'),
+    typeChips:      $('type-chips'),
+    countrySearch:  $('country-search'),
+    clearFiltersBtn:$('clear-filters-btn'),
+    statsCount:     $('stats-count'),
+    loadingOverlay: $('loading-overlay'),
+    errorBanner:    $('error-banner'),
+    noDataMsg:      $('no-data-msg'),
+    calendarWrap:   $('calendar-wrap'),
+    monthsGrid:     $('months-grid'),
+    legendStrip:    $('legend-strip'),
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // API helpers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async function apiFetch(path) {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`HTTP ${res.status} — ${path}`);
+    return res.json();
+  }
+
+  async function loadRegions() {
+    const data = await apiFetch('/api/regions');
+    state.regions = data.regions || [];
+  }
+
+  async function loadCountries(region = null) {
+    const url = region ? `/api/countries?region=${encodeURIComponent(region)}` : '/api/countries';
+    const data = await apiFetch(url);
+    return data.countries || [];
+  }
+
+  /**
+   * Fetch holidays, using per-year+filter cache to avoid redundant network
+   * calls when the user toggles type filters (client-side only).
+   */
+  async function loadHolidays(year, country = null, region = null) {
+    const cacheKey = `${year}|${country ?? ''}|${region ?? ''}`;
+
+    if (state.cache.has(cacheKey)) {
+      state.holidays = state.cache.get(cacheKey);
+      return;
+    }
+
+    const params = new URLSearchParams({ year });
+    if (country) params.set('country', country);
+    if (region)  params.set('region', region);
+
+    const data = await apiFetch(`/api/holidays?${params}`);
+    const holidays = data.holidays || [];
+    state.cache.set(cacheKey, holidays);
+    state.holidays = holidays;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Filter helpers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Returns holidays filtered by selected type (client-side). */
+  function filteredHolidays() {
+    if (state.selectedType === 'all') return state.holidays;
+    return state.holidays.filter(h => h.type === state.selectedType);
+  }
+
+  /** Group holidays by YYYY-MM-DD date string. */
+  function groupByDate(holidays) {
+    const map = new Map();
+    for (const h of holidays) {
+      const list = map.get(h.date) || [];
+      list.push(h);
+      map.set(h.date, list);
+    }
+    return map;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Sidebar rendering
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function renderYearLabel() {
+    dom.yearLabel.textContent = state.year;
+    dom.mobYearLabel.textContent = state.year;
+  }
+
+  function renderRegionList() {
+    // Group countries by region
+    const byRegion = new Map();
+    for (const c of state.countries) {
+      const list = byRegion.get(c.region) || [];
+      list.push(c);
+      byRegion.set(c.region, list);
+    }
+
+    // Build in API region order
+    const regionOrder = state.regions.map(r => r.name);
+    // Any region not in the list (edge case) goes at end
+    for (const r of byRegion.keys()) {
+      if (!regionOrder.includes(r)) regionOrder.push(r);
+    }
+
+    dom.regionList.innerHTML = '';
+
+    for (const regionName of regionOrder) {
+      const countries = byRegion.get(regionName);
+      if (!countries || countries.length === 0) continue;
+
+      const group = document.createElement('div');
+      group.className = 'region-group';
+
+      const header = document.createElement('div');
+      header.className = 'region-header';
+      header.setAttribute('role', 'button');
+      header.setAttribute('tabindex', '0');
+      header.dataset.region = regionName;
+      header.innerHTML = `
+        <span>${regionName}</span>
+        <span class="r-chevron">&#9654;</span>
+      `;
+
+      const countriesEl = document.createElement('div');
+      countriesEl.className = 'region-countries';
+
+      for (const c of countries) {
+        const item = document.createElement('div');
+        item.className = 'country-item';
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.dataset.code = c.code;
+        const countForCountry = state.holidays.filter(h => h.country_code === c.code).length;
+        const badgeHtml = countForCountry > 0
+          ? `<span class="country-count-badge">${countForCountry}</span>`
+          : '';
+        item.innerHTML = `
+          <input type="checkbox" id="cb-${c.code}" aria-label="${c.name}" />
+          <label for="cb-${c.code}">
+            <span class="country-flag">${c.flag_emoji}</span>
+            <span class="country-name-text">${c.name}</span>
+            ${badgeHtml}
+          </label>
+        `;
+        countriesEl.appendChild(item);
+      }
+
+      group.appendChild(header);
+      group.appendChild(countriesEl);
+      dom.regionList.appendChild(group);
+    }
+
+    // After building, apply active state
+    syncFilterUI();
+  }
+
+  function renderTypeChips(container) {
+    container.innerHTML = '';
+    for (const type of TYPE_ORDER) {
+      const meta = TYPE_META[type];
+      const btn = document.createElement('button');
+      btn.className = 'type-chip';
+      btn.dataset.type = type;
+      btn.textContent = meta.label;
+      if (state.selectedType === type) btn.classList.add(meta.chipClass);
+      container.appendChild(btn);
+    }
+  }
+
+  function renderLegend() {
+    const types = ['public','religious','cultural','school','observance','optional'];
+    dom.legendStrip.innerHTML = types.map(t => `
+      <div class="legend-item">
+        <div class="legend-dot ${TYPE_META[t].dotClass}"></div>
+        <span>${TYPE_META[t].label}</span>
+      </div>
+    `).join('');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Next Upcoming Holiday pill
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function updateNextHolidayPill() {
+    const pill = document.getElementById('next-holiday-pill');
+    if (!pill) return;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    // Find the next holiday on or after today, sorted by date
+    const upcoming = state.holidays
+      .filter(h => new Date(h.date + 'T00:00:00') >= now)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (upcoming.length === 0) {
+      pill.style.display = 'none';
+      return;
+    }
+
+    const next = upcoming[0];
+    const nextDate = new Date(next.date + 'T00:00:00');
+    const diffMs   = nextDate - now;
+    const diffDays = Math.round(diffMs / 86400000);
+    const countryMap = new Map(state.countries.map(c => [c.code, c]));
+    const country    = countryMap.get(next.country_code);
+    const flag       = country?.flag_emoji ?? '';
+    const countryName = country?.name ?? next.country_code;
+
+    let daysText;
+    if (diffDays === 0)      daysText = 'Today';
+    else if (diffDays === 1) daysText = 'Tomorrow';
+    else                     daysText = `in ${diffDays} days`;
+
+    document.getElementById('nhp-name').textContent = next.name;
+    document.getElementById('nhp-meta').textContent = `${flag} ${countryName} · ${daysText}`;
+    pill.style.display = 'block';
+
+    // Clicking the pill scrolls to that month
+    pill.onclick = () => {
+      const monthIdx = nextDate.getMonth(); // 0-based
+      const cards = dom.monthsGrid.querySelectorAll('.month-card');
+      if (cards[monthIdx]) {
+        cards[monthIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+  }
+
+  /** Show/hide the "Clear filters" button based on active filters. */
+  function updateClearFiltersBtn() {
+    const hasFilter = state.selectedCountry || state.selectedRegion || state.selectedType !== 'all';
+    dom.clearFiltersBtn.style.display = hasFilter ? '' : 'none';
+  }
+
+  /** Sync checkboxes and active classes to current state. */
+  function syncFilterUI() {
+    // "All Countries" button
+    const isAll = !state.selectedCountry && !state.selectedRegion;
+    dom.filterAllBtn.classList.toggle('active', isAll);
+
+    // Uncheck / check country items
+    dom.regionList.querySelectorAll('.country-item').forEach(item => {
+      const cb = item.querySelector('input[type="checkbox"]');
+      const active = item.dataset.code === state.selectedCountry;
+      cb.checked = active;
+      item.classList.toggle('active', active);
+    });
+
+    // Region headers
+    dom.regionList.querySelectorAll('.region-header').forEach(hdr => {
+      const active = hdr.dataset.region === state.selectedRegion;
+      hdr.classList.toggle('active', active);
+    });
+
+    // Type chips
+    dom.typeChips.querySelectorAll('.type-chip').forEach(chip => {
+      const t = chip.dataset.type;
+      const meta = TYPE_META[t];
+      // Remove all active classes
+      Object.values(TYPE_META).forEach(m => chip.classList.remove(m.chipClass));
+      if (t === state.selectedType) chip.classList.add(meta.chipClass);
+    });
+
+    // Mobile type chips mirror
+    dom.mobTypeChips.querySelectorAll('.type-chip').forEach(chip => {
+      const t = chip.dataset.type;
+      const meta = TYPE_META[t];
+      Object.values(TYPE_META).forEach(m => chip.classList.remove(m.chipClass));
+      if (t === state.selectedType) chip.classList.add(meta.chipClass);
+    });
+  }
+
+  /** Build the mobile country/region <select> options. */
+  function renderMobileSelect() {
+    const sel = dom.mobCountrySelect;
+    sel.innerHTML = '';
+
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = '🌍 All Countries';
+    sel.appendChild(opt0);
+
+    const byRegion = new Map();
+    for (const c of state.countries) {
+      const list = byRegion.get(c.region) || [];
+      list.push(c);
+      byRegion.set(c.region, list);
+    }
+
+    for (const regionName of state.regions.map(r => r.name)) {
+      const countries = byRegion.get(regionName);
+      if (!countries) continue;
+      const group = document.createElement('optgroup');
+      group.label = regionName;
+      for (const c of countries) {
+        const opt = document.createElement('option');
+        opt.value = c.code;
+        opt.textContent = `${c.flag_emoji} ${c.name}`;
+        group.appendChild(opt);
+      }
+      sel.appendChild(group);
+    }
+
+    sel.value = state.selectedCountry || '';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Calendar rendering
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function renderCalendar() {
+    closePopover();
+    const holidays = filteredHolidays();
+    const byDate   = groupByDate(holidays);
+
+    dom.statsCount.textContent = holidays.length.toLocaleString();
+
+    if (holidays.length === 0 && state.holidays.length === 0) {
+      dom.calendarWrap.classList.remove('active');
+      dom.noDataMsg.classList.add('active');
+      return;
+    }
+
+    dom.noDataMsg.classList.remove('active');
+    dom.calendarWrap.classList.add('active');
+
+    dom.monthsGrid.innerHTML = '';
+
+    for (let m = 0; m < 12; m++) {
+      const card = renderMonth(state.year, m, byDate);
+      dom.monthsGrid.appendChild(card);
+    }
+
+    // Scroll to today's month if viewing current year
+    if (state.year === today.getFullYear()) {
+      const cards = dom.monthsGrid.querySelectorAll('.month-card');
+      const currentCard = cards[today.getMonth()];
+      if (currentCard) {
+        // small delay so layout settles
+        setTimeout(() => currentCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }
+    }
+  }
+
+  /**
+   * Render a single month card.
+   * @param {number} year
+   * @param {number} month  0-indexed
+   * @param {Map<string, Array>} byDate  holidays grouped by ISO date string
+   * @returns {HTMLElement}
+   */
+  function renderMonth(year, month, byDate) {
+    const card = document.createElement('div');
+    const isCurrentMonthCard = (
+      year === today.getFullYear() && month === today.getMonth()
+    );
+    card.className = isCurrentMonthCard ? 'month-card current-month-card' : 'month-card';
+    card.id = `month-${month}`;
+
+    // Count holidays in this month
+    let monthCount = 0;
+    for (const [dateStr, hols] of byDate) {
+      const d = new Date(dateStr + 'T00:00:00');
+      if (d.getFullYear() === year && d.getMonth() === month) monthCount += hols.length;
+    }
+
+    // Density class for month header heatmap tint
+    let densityClass = '';
+    if (monthCount >= 16) densityClass = 'density-high';
+    else if (monthCount >= 6) densityClass = 'density-mid';
+    else if (monthCount >= 1) densityClass = 'density-low';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = `month-header ${densityClass}`.trim();
+    header.innerHTML = `
+      <span class="month-name">${MONTH_NAMES[month]}</span>
+      <span class="month-count">
+        ${monthCount > 0
+          ? `<span class="count-num">${monthCount}</span> ${monthCount === 1 ? 'holiday' : 'holidays'}`
+          : '<span style="color:var(--text-muted)">no data</span>'
+        }
+      </span>
+    `;
+    card.appendChild(header);
+
+    // Calendar grid
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
+
+    // Day-of-week header row
+    const dowRow = document.createElement('div');
+    dowRow.className = 'cal-dow-row';
+    DOW_LABELS.forEach(d => {
+      const cell = document.createElement('div');
+      cell.className = 'cal-dow';
+      cell.textContent = d;
+      dowRow.appendChild(cell);
+    });
+    grid.appendChild(dowRow);
+
+    // Build week rows
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const weeks = document.createElement('div');
+    weeks.className = 'cal-weeks';
+
+    let dayCounter = 1;
+    let nextCounter = 1;
+    // padding days from previous month
+    let prevStart = daysInPrevMonth - firstDay + 1;
+
+    // We always render enough rows
+    const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+    for (let cell = 0; cell < totalCells; cell++) {
+      if (cell % 7 === 0) {
+        const week = document.createElement('div');
+        week.className = 'cal-week';
+        weeks.appendChild(week);
+      }
+      const week = weeks.lastElementChild;
+
+      const dayEl = document.createElement('div');
+      const col = cell % 7;
+      dayEl.className = 'cal-day' + (col === 0 || col === 6 ? ' weekend-day' : '');
+
+      let dayNum, isCurrentMonth;
+      if (cell < firstDay) {
+        // Previous month overflow
+        dayNum = prevStart + cell;
+        isCurrentMonth = false;
+        dayEl.classList.add('other-month');
+        // Remove weekend shading from overflow cells — keeps grid clean
+        dayEl.classList.remove('weekend-day');
+      } else if (dayCounter <= daysInMonth) {
+        dayNum = dayCounter;
+        isCurrentMonth = true;
+        dayCounter++;
+      } else {
+        // Next month overflow
+        dayNum = nextCounter;
+        isCurrentMonth = false;
+        nextCounter++;
+        dayEl.classList.add('other-month');
+        // Remove weekend shading from overflow cells — keeps grid clean
+        dayEl.classList.remove('weekend-day');
+      }
+
+      // Check if today
+      if (
+        isCurrentMonth &&
+        year  === today.getFullYear() &&
+        month === today.getMonth() &&
+        dayNum === today.getDate()
+      ) {
+        dayEl.classList.add('today');
+      }
+
+      const dateStr = isCurrentMonth
+        ? `${year}-${String(month + 1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`
+        : null;
+
+      const dayHols = (dateStr && byDate.has(dateStr)) ? byDate.get(dateStr) : [];
+
+      if (dayHols.length > 0) {
+        dayEl.classList.add('has-holiday', 'popover-anchor');
+
+        // Build dot indicators (up to 3 unique types, with overflow label)
+        const seenTypes = new Set();
+        const dotsEl = document.createElement('div');
+        dotsEl.className = 'day-dots';
+        for (const h of dayHols) {
+          const type = h.type || 'observance';
+          if (!seenTypes.has(type)) seenTypes.add(type);
+        }
+        const typeList = [...seenTypes];
+        const maxDots = 3;
+        typeList.slice(0, maxDots).forEach(type => {
+          const dot = document.createElement('div');
+          dot.className = `day-dot ${TYPE_META[type]?.dotClass || 'dot-observance'}`;
+          dotsEl.appendChild(dot);
+        });
+        if (typeList.length > maxDots) {
+          const more = document.createElement('span');
+          more.className = 'day-dots-more';
+          more.textContent = `+${typeList.length - maxDots}`;
+          dotsEl.appendChild(more);
+        }
+
+        const numEl = document.createElement('span');
+        numEl.className = 'day-num';
+        numEl.textContent = dayNum;
+        dayEl.appendChild(numEl);
+        dayEl.appendChild(dotsEl);
+
+        // Click handler — open popover
+        dayEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openPopover(dayEl, dateStr, dayHols);
+        });
+      } else {
+        dayEl.innerHTML = `<span class="day-num">${dayNum}</span>`;
+      }
+
+      week.appendChild(dayEl);
+    }
+
+    grid.appendChild(weeks);
+    card.appendChild(grid);
+
+    return card;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Popover
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function openPopover(anchorEl, dateStr, holidays) {
+    // Close any previously open popover
+    closePopover();
+
+    anchorEl.classList.add('selected-day');
+
+    const popover = document.createElement('div');
+    popover.className = 'popover';
+
+    // Format date nicely
+    const d = new Date(dateStr + 'T00:00:00');
+    const formatted = d.toLocaleDateString('en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    const dateHeader = document.createElement('div');
+    dateHeader.className = 'popover-date';
+    dateHeader.textContent = formatted;
+    popover.appendChild(dateHeader);
+
+    // Days-away sub-label
+    const todaySnap = new Date();
+    todaySnap.setHours(0, 0, 0, 0);
+    const hDate    = new Date(dateStr + 'T00:00:00');
+    const diffDays = Math.round((hDate - todaySnap) / 86400000);
+    if (diffDays !== 0) {
+      const daysEl = document.createElement('div');
+      daysEl.className = 'popover-days-away';
+      if (diffDays > 0) {
+        daysEl.textContent = diffDays === 1 ? 'Tomorrow' : `in ${diffDays} days`;
+      } else {
+        daysEl.textContent = diffDays === -1 ? 'Yesterday' : `${Math.abs(diffDays)} days ago`;
+      }
+      popover.appendChild(daysEl);
+    }
+
+    // Build holiday lookup map for flag + country name
+    const countryMap = new Map(state.countries.map(c => [c.code, c]));
+
+    for (const h of holidays) {
+      const country = countryMap.get(h.country_code);
+      const flag    = country?.flag_emoji ?? '🏳';
+      const name    = country?.name ?? h.country_code;
+      const type    = h.type || 'observance';
+      const meta    = TYPE_META[type] || TYPE_META['observance'];
+
+      const item = document.createElement('div');
+      item.className = 'popover-holiday';
+      item.innerHTML = `
+        <span class="ph-flag">${flag}</span>
+        <div class="ph-info">
+          <div class="ph-country">${name}</div>
+          <div class="ph-name">${escapeHtml(h.name)}</div>
+        </div>
+        <span class="ph-badge ${meta.badgeClass}">${type}</span>
+      `;
+      popover.appendChild(item);
+    }
+
+    // Attach to body so it escapes any overflow:hidden ancestor.
+    document.body.appendChild(popover);
+    activePopover = { popover, anchorEl };
+
+    // Position using fixed coords derived from the anchor cell's viewport rect.
+    requestAnimationFrame(() => {
+      const rect = anchorEl.getBoundingClientRect();
+      const pw   = 280;                     // popover width
+      const gap  = 6;                       // gap between cell and popover
+      const vw   = window.innerWidth;
+      const vh   = window.innerHeight;
+
+      // Horizontally: centre on the cell, clamped to viewport with 8px margin.
+      let left = rect.left + rect.width / 2 - pw / 2;
+      left = Math.max(8, Math.min(left, vw - pw - 8));
+
+      // Vertically: prefer below the cell; flip above if too close to bottom.
+      let top = rect.bottom + gap;
+      if (top + 220 > vh && rect.top - 220 - gap > 0) {
+        top = rect.top - 220 - gap;
+      }
+
+      popover.style.left = left + 'px';
+      popover.style.top  = top  + 'px';
+      popover.classList.add('open');
+    });
+  }
+
+  function closePopover() {
+    if (!activePopover) return;
+    const { popover, anchorEl } = activePopover;
+    popover.classList.remove('open');
+    anchorEl.classList.remove('selected-day');
+    // Remove after animation
+    setTimeout(() => { if (popover.parentNode) popover.remove(); }, 150);
+    activePopover = null;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Loading / error UI helpers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function showLoading(on) {
+    dom.loadingOverlay.classList.toggle('active', on);
+    if (on) {
+      dom.calendarWrap.classList.remove('active');
+      dom.noDataMsg.classList.remove('active');
+    }
+  }
+
+  function showError(msg) {
+    if (msg) {
+      dom.errorBanner.textContent = `⚠ ${msg}`;
+      dom.errorBanner.classList.add('active');
+    } else {
+      dom.errorBanner.classList.remove('active');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Data refresh orchestration
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Full refresh: fetch holidays then re-render calendar.
+   * Called when year, country or region selection changes.
+   */
+  async function refresh() {
+    closePopover();
+    showLoading(true);
+    showError(null);
+    renderYearLabel();
+
+    try {
+      await loadHolidays(state.year, state.selectedCountry, state.selectedRegion);
+    } catch (err) {
+      showError('Could not load holidays — is the server running?');
+      showLoading(false);
+      return;
+    }
+
+    showLoading(false);
+    renderRegionList();
+    renderCalendar();
+    updateNextHolidayPill();
+    syncFilterUI();
+    updateClearFiltersBtn();
+  }
+
+  /**
+   * Client-side type filter change — no API call, just re-render.
+   */
+  function applyTypeFilter() {
+    closePopover();
+    syncFilterUI();
+    renderCalendar();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Event wiring
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function wireEvents() {
+    // ── Year navigation ──────────────────────────────────────────────
+    const changeYear = delta => {
+      state.year += delta;
+      refresh();
+    };
+
+    dom.yearPrev.addEventListener('click', () => changeYear(-1));
+    dom.yearNext.addEventListener('click', () => changeYear(+1));
+    dom.mobYearPrev.addEventListener('click', () => changeYear(-1));
+    dom.mobYearNext.addEventListener('click', () => changeYear(+1));
+
+    // ── Jump to today ────────────────────────────────────────────────
+    dom.todayBtn.addEventListener('click', () => {
+      const currentYear  = new Date().getFullYear();
+      const currentMonth = new Date().getMonth(); // 0-based
+      if (state.year !== currentYear) {
+        // Navigate to the current year — render will scroll on load
+        state.year = currentYear;
+        dom.yearLabel.textContent = currentYear;
+        if (dom.mobYearLabel) dom.mobYearLabel.textContent = currentYear;
+        refresh();
+        return;
+      }
+      // Already on the right year — just scroll to today's month card
+      const cards = dom.monthsGrid.querySelectorAll('.month-card');
+      if (cards[currentMonth]) {
+        cards[currentMonth].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    // Keyboard: ← → change year, Escape closes popover
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape')      closePopover();
+      if (e.key === 'ArrowLeft'  && !e.target.matches('input,select,textarea')) changeYear(-1);
+      if (e.key === 'ArrowRight' && !e.target.matches('input,select,textarea')) changeYear(+1);
+    });
+
+    // ── Sidebar collapsible sections ─────────────────────────────────
+    const toggleSection = (hdr, body) => {
+      const collapsed = hdr.classList.toggle('collapsed');
+      const isNowCollapsed = collapsed;
+      body.classList.toggle('collapsed', isNowCollapsed);
+      hdr.setAttribute('aria-expanded', !isNowCollapsed);
+      if (!isNowCollapsed) {
+        // Set explicit max-height so CSS transition works
+        body.style.maxHeight = body.scrollHeight + 'px';
+      } else {
+        body.style.maxHeight = body.scrollHeight + 'px'; // force reflow
+        requestAnimationFrame(() => { body.style.maxHeight = '0'; });
+      }
+    };
+
+    // Init max-heights for transition
+    dom.regionSectionBody.style.maxHeight = 'none';
+    dom.typeSectionBody.style.maxHeight   = 'none';
+
+    dom.regionSectionHdr.addEventListener('click', () => toggleSection(dom.regionSectionHdr, dom.regionSectionBody));
+    dom.typeSectionHdr.addEventListener('click',   () => toggleSection(dom.typeSectionHdr, dom.typeSectionBody));
+
+    // Keyboard activation for section headers
+    [dom.regionSectionHdr, dom.typeSectionHdr].forEach(hdr => {
+      hdr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') hdr.click(); });
+    });
+
+    // ── "All Countries" button ───────────────────────────────────────
+    dom.filterAllBtn.addEventListener('click', () => {
+      state.selectedCountry = null;
+      state.selectedRegion  = null;
+      syncFilterUI();
+      updateClearFiltersBtn();
+      refresh();
+    });
+
+    dom.filterAllBtn.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') dom.filterAllBtn.click();
+    });
+
+    // ── Region & country click delegation ───────────────────────────
+    dom.regionList.addEventListener('click', e => {
+      const regionHdr = e.target.closest('.region-header');
+      const countryItem = e.target.closest('.country-item');
+
+      if (regionHdr) {
+        // Toggle open/close of country list under region
+        const countries = regionHdr.nextElementSibling;
+        const isOpen = regionHdr.classList.toggle('open');
+        countries.classList.toggle('open', isOpen);
+
+        // Clicking region selects all its countries (i.e. filter by region)
+        const regionName = regionHdr.dataset.region;
+        if (state.selectedRegion === regionName) {
+          // Second click deselects
+          state.selectedRegion  = null;
+          state.selectedCountry = null;
+        } else {
+          state.selectedRegion  = regionName;
+          state.selectedCountry = null;
+        }
+        syncFilterUI();
+        updateClearFiltersBtn();
+        refresh();
+        return;
+      }
+
+      if (countryItem) {
+        const code = countryItem.dataset.code;
+        if (state.selectedCountry === code) {
+          // Deselect → back to all
+          state.selectedCountry = null;
+          state.selectedRegion  = null;
+        } else {
+          state.selectedCountry = code;
+          state.selectedRegion  = null;
+        }
+        syncFilterUI();
+        updateClearFiltersBtn();
+        refresh();
+      }
+    });
+
+    // Keyboard support for region/country items
+    dom.regionList.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const target = e.target.closest('.region-header, .country-item');
+        if (target) target.click();
+      }
+    });
+
+    // ── Type chip clicks (sidebar) ───────────────────────────────────
+    dom.typeChips.addEventListener('click', e => {
+      const chip = e.target.closest('.type-chip');
+      if (!chip) return;
+      state.selectedType = chip.dataset.type;
+      updateClearFiltersBtn();
+      applyTypeFilter();
+    });
+
+    // ── Mobile controls ──────────────────────────────────────────────
+    dom.mobFilterToggle.addEventListener('click', () => {
+      dom.mobFilterDrawer.classList.toggle('open');
+    });
+
+    dom.mobCountrySelect.addEventListener('change', e => {
+      const val = e.target.value;
+      state.selectedCountry = val || null;
+      state.selectedRegion  = null;
+      syncFilterUI();
+      updateClearFiltersBtn();
+      refresh();
+    });
+
+    dom.mobTypeChips.addEventListener('click', e => {
+      const chip = e.target.closest('.type-chip');
+      if (!chip) return;
+      state.selectedType = chip.dataset.type;
+      updateClearFiltersBtn();
+      applyTypeFilter();
+    });
+
+    // ── Country search box ───────────────────────────────────────────
+    dom.countrySearch.addEventListener('input', () => {
+      const query = dom.countrySearch.value.trim().toLowerCase();
+      // Show/hide country items based on query
+      dom.regionList.querySelectorAll('.country-item').forEach(item => {
+        const code = item.dataset.code || '';
+        const country = state.countries.find(c => c.code === code);
+        const name = country ? country.name.toLowerCase() : '';
+        const match = !query || name.includes(query) || code.toLowerCase().includes(query);
+        item.style.display = match ? '' : 'none';
+      });
+      // Show/hide region groups — hide entire group if all countries hidden
+      dom.regionList.querySelectorAll('.region-group').forEach(group => {
+        const visible = [...group.querySelectorAll('.country-item')]
+          .some(item => item.style.display !== 'none');
+        group.style.display = visible ? '' : 'none';
+        // Auto-expand region groups when searching
+        if (query) {
+          const countriesEl = group.querySelector('.region-countries');
+          const regionHeader = group.querySelector('.region-header');
+          if (countriesEl) countriesEl.classList.add('open');
+          if (regionHeader) regionHeader.classList.add('open');
+        }
+      });
+    });
+
+    // ── Clear filters button ─────────────────────────────────────────
+    dom.clearFiltersBtn.addEventListener('click', () => {
+      state.selectedCountry = null;
+      state.selectedRegion  = null;
+      state.selectedType    = 'all';
+      if (dom.countrySearch) {
+        dom.countrySearch.value = '';
+        // Re-show all items
+        dom.regionList.querySelectorAll('.country-item, .region-group').forEach(el => {
+          el.style.display = '';
+        });
+      }
+      syncFilterUI();
+      updateClearFiltersBtn();
+      refresh();
+    });
+
+    // ── Close popover on outside click ───────────────────────────────
+    document.addEventListener('click', e => {
+      if (activePopover && !activePopover.popover.contains(e.target) && e.target !== activePopover.anchorEl) {
+        closePopover();
+      }
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bootstrap
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async function init() {
+    showLoading(true);
+    showError(null);
+
+    // Wire events before anything else (no double-binding risk)
+    wireEvents();
+
+    try {
+      // Load regions and all countries in parallel
+      const [, allCountries] = await Promise.all([
+        loadRegions(),
+        loadCountries(),
+      ]);
+      state.countries = allCountries;
+    } catch (err) {
+      showError('Could not load country data — is the server running on :8080?');
+      showLoading(false);
+      return;
+    }
+
+    // Render static sidebar pieces
+    renderRegionList();
+    renderTypeChips(dom.typeChips);
+    renderTypeChips(dom.mobTypeChips);
+    renderMobileSelect();
+    renderLegend();
+    renderYearLabel();
+
+    // Initial holiday fetch
+    try {
+      await loadHolidays(state.year, null, null);
+    } catch (err) {
+      showError('Could not load holidays — is the server running on :8080?');
+      showLoading(false);
+      return;
+    }
+
+    showLoading(false);
+    // Re-render region list now that holidays are loaded, so count badges show correct values
+    renderRegionList();
+    renderCalendar();
+    updateNextHolidayPill();
+    updateClearFiltersBtn();
+  }
+
+  // Kick off
+  init();
+  </script>
+</body>
+</html>
