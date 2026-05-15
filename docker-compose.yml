@@ -1,0 +1,29 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    environment:
+      # PORT is read by the Go server via config.Load().
+      # Render injects this automatically; override here for local dev.
+      PORT: "${PORT:-8080}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      DB_PATH: "/data/clandar.db"
+      CALENDARIFIC_API_KEY: "${CALENDARIFIC_API_KEY:-}"
+    volumes:
+      - clandar_data:/data
+    restart: unless-stopped
+    healthcheck:
+      # wget is installed in the runtime image (alpine:3.20 + wget).
+      test: ["CMD", "wget", "-qO-", "http://localhost:${PORT:-8080}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+# Named volume so SQLite data persists across container restarts and rebuilds.
+# On Render this role is filled by a Persistent Disk (see render.yaml).
+volumes:
+  clandar_data:
