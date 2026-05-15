@@ -1,0 +1,54 @@
+# render.yaml — Render Blueprint for Clandar
+# https://render.com/docs/blueprint-spec
+#
+# One-click deploy: push to GitHub, connect the repo on Render, and this file
+# provisions everything automatically.
+#
+# After first deploy, set CALENDARIFIC_API_KEY in:
+#   Render Dashboard → clandar → Environment → CALENDARIFIC_API_KEY
+# (Optional — improves holiday coverage for ASEAN countries not on Nager.Date.)
+
+services:
+  - name: clandar
+    type: web
+    runtime: docker
+
+    # Render builds the image using the repo-root Dockerfile.
+    dockerfilePath: ./Dockerfile
+
+    # Singapore is closest to the ASEAN/Asia-Pacific holiday data focus.
+    # Change to "oregon" (US West) or "frankfurt" (EU) if preferred.
+    region: singapore
+
+    # Free tier spins down after 15 min of inactivity (cold start ~30s).
+    # Upgrade to "starter" ($7/mo) for always-on with no spin-down.
+    plan: free
+
+    # Render calls this path to confirm the service is healthy before routing
+    # traffic. Maps to GET /health → {"status":"ok"} in the Go server.
+    healthCheckPath: /health
+
+    envVars:
+      # Render injects PORT automatically — the Go server reads it via
+      # config.Load() → os.Getenv("PORT") with default "8080".
+      # Do NOT set PORT here; let Render control it.
+
+      - key: LOG_LEVEL
+        value: info
+
+      - key: DB_PATH
+        # Must match the disk mountPath below.
+        value: /data/clandar.db
+
+      - key: CALENDARIFIC_API_KEY
+        # sync: false = Render will prompt for this value in the dashboard.
+        # Never commit the real key to the repo.
+        sync: false
+
+    disk:
+      name: clandar-data
+      # Must match DB_PATH directory above.
+      mountPath: /data
+      # 1 GB is plenty for SQLite + WAL files for 20 countries × many years.
+      # Render charges ~$0.25/GB/month for persistent disks.
+      sizeGB: 1
