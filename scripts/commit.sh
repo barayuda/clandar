@@ -72,7 +72,7 @@ git config commit.gpgsign true
 
 # ── Commits ───────────────────────────────────────────────────────────────────
 
-log "Starting commit sequence (17 commits)..."
+log "Starting commit sequence (19 commits)..."
 echo ""
 
 # 1 ─ Project scaffold
@@ -175,15 +175,31 @@ commit \
 
 # 17 ─ Render deployment
 commit \
-  "$(printf 'build(render): add render.yaml Blueprint and harden Docker for Render\n\nrender.yaml provisions a Web Service (Singapore region, free plan)\nwith a 1 GB Persistent Disk at /data for SQLite.\nDockerfile pinned to alpine:3.20, non-root user, HEALTHCHECK added.\ndocker-compose.yml uses \${PORT:-8080} for env-driven port mapping.')" \
+  "$(printf 'build(render): add render.yaml Blueprint and harden Docker for Render\n\nrender.yaml provisions a Web Service (Singapore region, free plan).\nNo persistent disk — database handled by Turso cloud SQLite.\nDockerfile pinned to alpine:3.20, non-root user, HEALTHCHECK added.\ndocker-compose.yml uses \${PORT:-8080} for env-driven port mapping.')" \
   render.yaml \
   Dockerfile \
   docker-compose.yml
 
+# 18 ─ Turso cloud SQLite integration
+commit \
+  "$(printf 'feat(store): add Turso cloud SQLite support with local fallback\n\nAdds libsql-client-go driver alongside modernc.org/sqlite.\nstore.Open() selects driver based on TURSO_DATABASE_URL env var:\n  - set → connects to Turso cloud (production / Render free)\n  - unset → opens local SQLite file (local dev unchanged)\nconfig.go gains TursoDatabaseURL, TursoAuthToken, IsRemoteDB().\nrender.yaml updated to free plan with no persistent disk.\n.env.example documents new Turso env vars.')" \
+  internal/config/config.go \
+  internal/store/db.go \
+  cmd/server/main.go \
+  render.yaml \
+  .env.example \
+  go.mod \
+  go.sum
+
+# 19 ─ Commit helper script
+commit \
+  "chore(scripts): add semantic commit helper script" \
+  scripts/commit.sh
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
-ok "All 17 commits created successfully."
+ok "All 19 commits created successfully."
 echo ""
 log "Summary:"
 git log --oneline
