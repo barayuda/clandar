@@ -1,54 +1,34 @@
 # render.yaml — Render Blueprint for Clandar
 # https://render.com/docs/blueprint-spec
 #
-# One-click deploy: push to GitHub, connect the repo on Render, and this file
-# provisions everything automatically.
+# Database: Turso cloud SQLite (free tier) — no persistent disk needed.
+# Server:   Render free web service.
 #
-# After first deploy, set CALENDARIFIC_API_KEY in:
-#   Render Dashboard → clandar → Environment → CALENDARIFIC_API_KEY
-# (Optional — improves holiday coverage for ASEAN countries not on Nager.Date.)
+# After first deploy, set secrets in Render Dashboard → Environment:
+#   TURSO_DATABASE_URL  → libsql://your-db.turso.io
+#   TURSO_AUTH_TOKEN    → your-turso-token
+#   CALENDARIFIC_API_KEY → (optional) your-calendarific-key
 
 services:
   - name: clandar
     type: web
     runtime: docker
-
-    # Render builds the image using the repo-root Dockerfile.
     dockerfilePath: ./Dockerfile
-
-    # Singapore is closest to the ASEAN/Asia-Pacific holiday data focus.
-    # Change to "oregon" (US West) or "frankfurt" (EU) if preferred.
     region: singapore
+    plan: free               # Free works — no disk needed with Turso
 
-    # Free tier spins down after 15 min of inactivity (cold start ~30s).
-    # Upgrade to "starter" ($7/mo) for always-on with no spin-down.
-    plan: free
-
-    # Render calls this path to confirm the service is healthy before routing
-    # traffic. Maps to GET /health → {"status":"ok"} in the Go server.
+    # Render calls this path to confirm the service is healthy.
     healthCheckPath: /health
 
     envVars:
-      # Render injects PORT automatically — the Go server reads it via
-      # config.Load() → os.Getenv("PORT") with default "8080".
-      # Do NOT set PORT here; let Render control it.
-
       - key: LOG_LEVEL
         value: info
 
-      - key: DB_PATH
-        # Must match the disk mountPath below.
-        value: /data/clandar.db
+      - key: TURSO_DATABASE_URL
+        sync: false          # Set in Render dashboard — keep it secret
+
+      - key: TURSO_AUTH_TOKEN
+        sync: false          # Set in Render dashboard — keep it secret
 
       - key: CALENDARIFIC_API_KEY
-        # sync: false = Render will prompt for this value in the dashboard.
-        # Never commit the real key to the repo.
-        sync: false
-
-    disk:
-      name: clandar-data
-      # Must match DB_PATH directory above.
-      mountPath: /data
-      # 1 GB is plenty for SQLite + WAL files for 20 countries × many years.
-      # Render charges ~$0.25/GB/month for persistent disks.
-      sizeGB: 1
+        sync: false          # Optional — improves ASEAN holiday coverage

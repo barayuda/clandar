@@ -40,10 +40,15 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
+	dbTarget := cfg.DBPath
+	if cfg.IsRemoteDB() {
+		dbTarget = cfg.TursoDatabaseURL
+	}
 	log.Info().
 		Str("port", cfg.Port).
 		Str("log_level", level.String()).
-		Str("db_path", cfg.DBPath).
+		Str("db", dbTarget).
+		Bool("remote_db", cfg.IsRemoteDB()).
 		Msg("starting clandar")
 
 	// --- Schema ---
@@ -53,7 +58,7 @@ func main() {
 	}
 
 	// --- Database ---
-	st, err := store.Open(cfg.DBPath, string(schemaSQL))
+	st, err := store.Open(cfg, string(schemaSQL))
 	if err != nil {
 		log.Fatal().Err(err).Msg("open database")
 	}
@@ -63,7 +68,7 @@ func main() {
 		}
 	}()
 
-	log.Info().Str("db_path", cfg.DBPath).Msg("database ready")
+	log.Info().Str("db", dbTarget).Bool("remote", cfg.IsRemoteDB()).Msg("database ready")
 
 	// --- Fetcher ---
 	f := fetcher.New(cfg.CalendarificAPIKey)
