@@ -1,0 +1,44 @@
+# Environment secrets — never commit the real .env
+.env
+
+# SQLite database files and data directory
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Go build artifacts
+/clandar
+/clandar.exe
+dist/
+
+# Go test cache & coverage
+*.test
+*.out
+coverage.html
+
+# Go workspace files (if using go work)
+go.work
+go.work.sum
+
+# Dependency vendor directory (we use modules, not vendor)
+vendor/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Node / Playwright (Phase 5)
+node_modules/
+playwright-report/
+test-results/
+.playwright/
+
+# Explicit paths for the e2e subdirectory (belt-and-suspenders)
+tests/e2e/node_modules/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
